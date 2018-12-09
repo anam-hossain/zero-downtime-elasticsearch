@@ -44,22 +44,25 @@ class IndexHandler
     public function createIndex($index)
     {
         try {
-            $index = $this->client->indices()->exists(['index' => $this->index]);
+            $isIndexExist = $this->client->indices()->exists(['index' => $index]);
 
-            if (!$index) {
-                $this->client->indices()->create($this->params());
+            if (!$isIndexExist) {
+                $this->client->indices()->create($this->params($index));
             }
         } catch (Exception $e) {
             Log::error('Unable to create index', [
                 'message' => $e->getMessage(),
                 'index' => $index,
             ]);
+
+            throw $e;
         }
     }
 
     /**
      * Add write alias to index
      *
+     * @param string $index
      * @return void
      */
     public function addWriteAlias($index)
@@ -72,6 +75,7 @@ class IndexHandler
     /**
      * Add read alias to index
      *
+     * @param string $index
      * @return void
      */
     public function addReadAlias($index)
@@ -90,10 +94,20 @@ class IndexHandler
      */
     public function addAlias($index, $alias)
     {
-        $this->client->indices()->putAlias([
-            'index' => $index,
-            'name' => $alias,
-        ]);
+        try {
+            $this->client->indices()->putAlias([
+                'index' => $index,
+                'name' => $alias,
+            ]);
+        } catch (Exception $e) {
+            Log::error('Unable to add index alias', [
+                'message' => $e->getMessage(),
+                'index' => $index,
+                'alias' => $alias,
+            ]);
+
+            throw $e;
+        }
     }
 
     /**
@@ -134,5 +148,32 @@ class IndexHandler
     public function generateIndexName()
     {
         return self::INDEX_PREFIX . '_' . time();
+    }
+
+    /**
+     * Index params
+     *
+     * @param string $index
+     * @return array
+     */
+    protected function params($index)
+    {
+        return [
+            'index' => $index,
+            'body' => [
+                'mappings' => [
+                    self::TYPE => [
+                        '_source' => [
+                            'enabled' => true,
+                        ],
+                        'properties' => [
+                            'Name' => [
+                                'type' => 'keyword',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
     }
 }
