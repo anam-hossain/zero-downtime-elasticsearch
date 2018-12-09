@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Country;
 use App\Handlers\IndexHandler;
+use App\Jobs\PushToSearchClusterJob;
 use Illuminate\Console\Command;
 
 class ReindexCommand extends Command
@@ -84,7 +85,7 @@ class ReindexCommand extends Command
             ->orderBy('Code')
             ->chunk(100, function ($countries) {
                 foreach ($countries as $country) {
-                    $this->indexHandler->indexDataUsingAlias($country->Code, $country->toArray());
+                    dispatch(new PushToSearchClusterJob($country->Code, $country->toArray()));
                 }
             });
     }
