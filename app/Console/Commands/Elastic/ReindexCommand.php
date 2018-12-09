@@ -3,23 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Country;
-use Elasticsearch\Client;
+use App\Handlers\IndexHandler;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Log;
 
 class ReindexCommand extends Command
 {
-    /**
-     * Search index name
-     */
-    const INDEX = 'world';
-
-    /**
-     * Search type
-     */
-    const TYPE = '_doc';
-
     /**
      * The name and signature of the console command.
      *
@@ -35,59 +23,54 @@ class ReindexCommand extends Command
     protected $description = 'Drop existing index and push all data to search cluster';
 
     /**
-     * @var \Elasticsearch\Client
+     * @var \App\Handlers\IndexHandler
      */
-    protected $client;
+    protected $indexHandler;
 
     /**
      * Create a new command instance.
      *
-     * @param  \Elasticsearch\Client  $client
+     * @param  \App\Handlers\IndexHandler  $indexHandler
      * @return void
      */
-    public function __construct(Client $client)
+    public function __construct(IndexHandler $indexHandler)
     {
         parent::__construct();
 
-        $this->client = $client;
+        $this->indexHandler = $indexHandler;
     }
 
     /**
      * Execute the console command.
+     * Reindexing in 5 steps
+     * 1. Create new index
+     * 2. Change write alias to point newly created index
+     * 3. Index all data using write index
+     * 4. After finish indexing, change read alias to point new index
+     * 5. Remove old index
      *
      * @return void
      */
     public function handle()
     {
-        try {
-            $this->removeIndex();
+        $newIndex = $this->indexHandler->generateIndexName();
 
-            $this->createIndex();
+        // 1. Create new index
+        $this->indexHandler->createIndex($newIndex);
 
-            $this->pushDataToSearchCluster();
-        } catch (Exception $e) {
-            Log::critical($e->getMessage());
-        }
-    }
+        $currentIndex = $this->indexHandler->getIndexByAlias(IndexHandler::WRITE_ALIAS);
 
-    /**
-     * Remove search index
-     *
-     * @return array
-     */
-    protected function removeIndex()
-    {
-        return $this->client->indices()->delete(['index' => self::INDEX]);
-    }
+        // 2. Change write alias to point newly created index
+        $this->indexHandler->switchAlias($currentIndex, $newIndex, IndexHandler::WRITE_ALIAS);
 
-    /**
-     * Recreate the search index
-     *
-     * @return void
-     */
-    protected function createIndex()
-    {
-        Artisan::call('elastic:create-index');
+        // 3. index all data using write alias
+        $this->reindexAllData();
+
+        // 4. Change read alias to point new index
+        $this->indexHandler->switchAlias($currentIndex, $newIndex, IndexHandler::READ_ALIAS);
+
+        // 5. Remove old index
+        $this->indexHandler->removeIndex($currentIndex);
     }
 
     /**
@@ -95,37 +78,14 @@ class ReindexCommand extends Command
      *
      * @return void
      */
-    protected function pushDataToSearchCluster()
+    protected function reindexAllData()
     {
         Country::with('cities', 'languages')
             ->orderBy('Code')
             ->chunk(100, function ($countries) {
                 foreach ($countries as $country) {
-                    $this->save($country);
+                    $this->indexHandler->indexDataUsingAlias($country->Code, $country->toArray());
                 }
             });
-    }
-
-    /**
-     * Index country
-     *
-     * @return void
-     */
-    protected function save($country)
-    {
-        try {
-            $response = $this->client->index([
-                'index' => self::INDEX,
-                'type' => self::TYPE,
-                'id' => $country->Code,
-                'body' => $country->toArray(),
-            ]);
-        } catch (Exception $e) {
-            Log::critical('Indexing failed', [
-                'id' => $country->Code,
-                'error' => $e->getMessage(),
-                'code' => $e->getCode(),
-            ]);
-        }
     }
 }

@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Handlers\IndexHandler;
-use Elasticsearch\Client;
 use Illuminate\Console\Command;
 
 class CreateIndexCommand extends Command
@@ -30,7 +29,7 @@ class CreateIndexCommand extends Command
     /**
      * Create a new command instance.
      *
-     * @param  \Elasticsearch\Client  $client
+     * @param  \App\Handlers\IndexHandler  $indexHandler
      * @return void
      */
     public function __construct(IndexHandler $indexHandler)

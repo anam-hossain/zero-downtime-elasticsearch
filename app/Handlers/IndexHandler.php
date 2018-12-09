@@ -18,6 +18,16 @@ class IndexHandler
     const TYPE = '_doc';
 
     /**
+     * Write alias
+     */
+    const WRITE_ALIAS = 'world_write';
+
+    /**
+     * Read alias
+     */
+    const READ_ALIAS = 'world_read';
+
+    /**
      * ElasticSearch client
      *
      * @var \Elasticsearch\Client
@@ -67,9 +77,7 @@ class IndexHandler
      */
     public function addWriteAlias($index)
     {
-        $alias = self::INDEX_PREFIX . '_write';
-
-        $this->addAlias($index, $alias);
+        $this->addAlias($index, self::WRITE_ALIAS);
     }
 
     /**
@@ -80,9 +88,7 @@ class IndexHandler
      */
     public function addReadAlias($index)
     {
-        $alias = self::INDEX_PREFIX . '_read';
-
-        $this->addAlias($index, $alias);
+        $this->addAlias($index, self::READ_ALIAS);
     }
 
     /**
@@ -137,7 +143,42 @@ class IndexHandler
             ],
         ];
 
-        $this->client->indices()->updateAliases($params);
+        try {
+            $this->client->indices()->updateAliases($params);
+        } catch (Exception $e) {
+            Log::error('Index alias switching failed', [
+                'message' => $e->getMessage(),
+                'fromIndex' => $fromIndex,
+                'toIndex' => $toIndex,
+                'alias' => $alias,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Get index by alias
+     *
+     * @return string
+     */
+    public function getIndexByAlias($alias)
+    {
+        try {
+            $indices = $this->client->indices()->getAlias(['name' => $alias]);
+
+            list($index) = array_keys($indices);
+
+        } catch (Exception $e) {
+            Log::error('Unable to get index by alias', [
+                'message' => $e->getMessage(),
+                'alias' => $alias,
+            ]);
+
+            throw $e;
+        }
+
+        return $index;
     }
 
     /**
@@ -148,6 +189,42 @@ class IndexHandler
     public function generateIndexName()
     {
         return self::INDEX_PREFIX . '_' . time();
+    }
+
+    /**
+     * Index data
+     *
+     * @param integer $id
+     * @param array $data
+     * @return void
+     */
+    public function indexDataUsingAlias($id, array $data)
+    {
+        try {
+            $this->client->index([
+                'index' => self::WRITE_ALIAS,
+                'type' => self::TYPE,
+                'id' => $id,
+                'body' => $data,
+            ]);
+        } catch (Exception $e) {
+            Log::critical('Indexing failed', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+            ]);
+        }
+    }
+
+    /**
+     * Remove search index
+     *
+     * @param string $index
+     * @return array
+     */
+    public function removeIndex($index)
+    {
+        return $this->client->indices()->delete(['index' => $index]);
     }
 
     /**
