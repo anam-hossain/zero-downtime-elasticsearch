@@ -12,7 +12,7 @@ class CreateIndexCommand extends Command
     /**
      * Search index name
      */
-    const INDEX = 'world';
+    const INDEX_PREFIX = 'world';
 
     /**
      * Search type
@@ -34,6 +34,13 @@ class CreateIndexCommand extends Command
     protected $description = 'Create ElasticSearch index';
 
     /**
+     * Index name
+     *
+     * @var string
+     */
+    protected $index;
+
+    /**
      * Create a new command instance.
      *
      * @param  \Elasticsearch\Client  $client
@@ -53,18 +60,71 @@ class CreateIndexCommand extends Command
      */
     public function handle()
     {
+        $this->generateIndexName();
+
         try {
-            $index = $this->client->indices()->exists(['index' => self::INDEX]);
+            $index = $this->client->indices()->exists(['index' => $this->index]);
 
             if (!$index) {
                 $this->client->indices()->create($this->params());
+
+                //$this->addWriteAlias();
+                //$this->addReadAlias();
             }
         } catch (Exception $e) {
             Log::error('Unable to generate search index', [
                 'message' => $e->getMessage(),
-                'index' => self::INDEX,
+                'index' => $this->index,
             ]);
         }
+    }
+
+    /**
+     * Add Write alias to index
+     *
+     * @return void
+     */
+    protected function addWriteAlias()
+    {
+        $alias = self::INDEX_PREFIX . '_write';
+
+        $this->addAlias($alias);
+    }
+
+    /**
+     * Add Read alias to index
+     *
+     * @return void
+     */
+    protected function addReadAlias()
+    {
+        $alias = self::INDEX_PREFIX . '_read';
+
+        $this->addAlias($alias);
+    }
+
+    /**
+     * Add an alias to index
+     *
+     * @param string $alias
+     * @return void
+     */
+    protected function addAlias($alias)
+    {
+        $this->client->indices()->putAlias([
+            'index' => $this->index,
+            'name' => $alias,
+        ]);
+    }
+
+    /**
+     * Generate index name
+     *
+     * @return void
+     */
+    protected function generateIndexName()
+    {
+        $this->index = self::INDEX_PREFIX . '_' . time();
     }
 
     /**
@@ -75,7 +135,7 @@ class CreateIndexCommand extends Command
     protected function params()
     {
         return [
-            'index' => self::INDEX,
+            'index' => $this->index,
             'body' => [
                 'mappings' => [
                     self::TYPE => [
