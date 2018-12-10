@@ -248,6 +248,9 @@ class IndexHandler
                             'Name' => [
                                 'type' => 'keyword',
                             ],
+                            'LocalName' => [
+                                'type' => 'keyword',
+                            ],
                         ],
                     ],
                 ],

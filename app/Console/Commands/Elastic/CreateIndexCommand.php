@@ -50,6 +50,8 @@ class CreateIndexCommand extends Command
 
         $this->indexHandler->createIndex($index);
 
+        // Before do these steps,
+        // we should verify that write and read aliases not pointing to any indices
         $this->indexHandler->addWriteAlias($index);
         $this->indexHandler->addReadAlias($index);
     }
