@@ -2,9 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Country;
 use App\Handlers\IndexHandler;
-use App\Jobs\PushToSearchClusterJob;
 use Illuminate\Console\Command;
 
 class ReindexCommand extends Command
@@ -64,29 +62,13 @@ class ReindexCommand extends Command
         // 2. Change write alias to point newly created index
         $this->indexHandler->switchAlias($currentIndex, $newIndex, IndexHandler::WRITE_ALIAS);
 
-        // 3. index all data using write alias
-        $this->reindexAllData();
+        // 3. Copies documents from one index to another using reindex api
+        $this->indexHandler->reindex($currentIndex, $newIndex);
 
         // 4. Change read alias to point new index
         $this->indexHandler->switchAlias($currentIndex, $newIndex, IndexHandler::READ_ALIAS);
 
         // 5. Remove old index
         $this->indexHandler->removeIndex($currentIndex);
-    }
-
-    /**
-     * Push data to the search cluster
-     *
-     * @return void
-     */
-    protected function reindexAllData()
-    {
-        Country::with('cities', 'languages')
-            ->orderBy('Code')
-            ->chunk(100, function ($countries) {
-                foreach ($countries as $country) {
-                    dispatch(new PushToSearchClusterJob($country->Code, $country->toArray()));
-                }
-            });
     }
 }

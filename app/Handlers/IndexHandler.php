@@ -127,18 +127,20 @@ class IndexHandler
      */
     public function switchAlias($fromIndex, $toIndex, $alias)
     {
-        $params['body'] = [
-            'actions' => [
-                [
-                    'remove' => [
-                        'index' => $fromIndex,
-                        'alias' => $alias,
+        $params = [
+            'body' => [
+                'actions' => [
+                    [
+                        'remove' => [
+                            'index' => $fromIndex,
+                            'alias' => $alias,
+                        ],
                     ],
-                ],
-                [
-                    'add' => [
-                        'index' => $toIndex,
-                        'alias' => $alias,
+                    [
+                        'add' => [
+                            'index' => $toIndex,
+                            'alias' => $alias,
+                        ],
                     ],
                 ],
             ],
@@ -152,6 +154,39 @@ class IndexHandler
                 'fromIndex' => $fromIndex,
                 'toIndex' => $toIndex,
                 'alias' => $alias,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Copies documents from one index to another
+     *
+     * @param string $fromIndex
+     * @param string $toIndex
+     * @return array
+     */
+    public function reindex($fromIndex, $toIndex)
+    {
+        $params = [
+            'body' => [
+                'source' => [
+                    'index' => $fromIndex,
+                ],
+                'dest' => [
+                    'index' => $toIndex,
+                ],
+            ],
+        ];
+
+        try {
+            return $this->client->reindex($params);
+        } catch (Exception $e) {
+            Log::error('Reindexing failed', [
+                'message' => $e->getMessage(),
+                'fromIndex' => $fromIndex,
+                'toIndex' => $toIndex,
             ]);
 
             throw $e;
