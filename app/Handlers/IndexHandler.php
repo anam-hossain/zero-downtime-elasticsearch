@@ -4,6 +4,7 @@ namespace App\Handlers;
 
 use Elasticsearch\Client;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 class IndexHandler
 {
