@@ -3,13 +3,7 @@
 ## Setup
 
 ### Database migration
-Please create the `world` database and run the following migration.
-
-```
-php artisan migrate
-```
-
-Populate data from the following url:
+Please create the `world` database and populate data from the following url.
 
 https://dev.mysql.com/doc/world-setup/en/world-setup-installation.html
 
