@@ -1,4 +1,4 @@
-#Zero downtime ElasticSearch reindexing using Laravel
+# Zero downtime ElasticSearch reindexing using Laravel
 
 ## Setup
 
