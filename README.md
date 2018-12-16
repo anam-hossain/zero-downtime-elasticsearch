@@ -1,5 +1,8 @@
 # Zero downtime ElasticSearch reindexing using Laravel
 
+## Description
+https://engineering.carsguide.com.au/elasticsearch-zero-downtime-reindexing-e3a53000f0ac
+
 ## Setup
 
 ### Database migration
